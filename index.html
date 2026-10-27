@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SD 체스</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#cfd8f6">
+<meta name="mobile-web-app-capable" content="yes">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{margin:0;height:100%;overflow:hidden;background:#cfd8f6;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+  canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+  .hud{position:fixed;left:0;right:0;pointer-events:none;display:flex;justify-content:center;gap:8px;padding:0 10px}
+  #top{top:max(10px,env(safe-area-inset-top))}
+  #bottom{top:calc(max(10px,env(safe-area-inset-top)) + 52px);flex-wrap:wrap}
+  .pill{pointer-events:auto;background:rgba(255,255,255,.92);color:#2b2540;border-radius:999px;padding:9px 16px;font-size:15px;font-weight:700;box-shadow:0 2px 8px rgba(60,40,120,.25)}
+  #turnDot{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid #2b2540;margin-right:8px;vertical-align:-1px}
+  button.pill{border:0;cursor:pointer}
+  button.pill:active{transform:scale(.96);background:#e8e0ff}
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(30,20,60,.45);z-index:10}
+  .card{background:#fff;border-radius:20px;padding:22px 26px;text-align:center;color:#2b2540;box-shadow:0 8px 30px rgba(0,0,0,.3);max-width:86%}
+  .card h2{margin:0 0 14px;font-size:20px}
+  .row{display:flex;gap:10px;justify-content:center}
+  .row button{font-size:34px;width:62px;height:62px;border-radius:16px;border:2px solid #cbbef5;background:#f6f2ff}
+  button.pill.chaos{color:#fff;background:linear-gradient(135deg,#ff4f81,#8e4dff);box-shadow:0 0 0 2px rgba(255,255,255,.7),0 0 14px rgba(255,79,129,.7);animation:chaosGlow 1.2s ease-in-out infinite alternate}
+  button.pill.chaos:active{background:linear-gradient(135deg,#e63e6e,#7a3ae6)}
+  body.chaos #top .pill{box-shadow:0 0 0 2px rgba(255,79,129,.8),0 0 14px rgba(142,77,255,.6)}
+  @keyframes chaosGlow{from{box-shadow:0 0 0 2px rgba(255,255,255,.7),0 0 8px rgba(255,79,129,.5)}to{box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 20px rgba(142,77,255,.9)}}
+  #clocks{bottom:max(14px,env(safe-area-inset-bottom))}
+  .pill.clock{min-width:112px;text-align:center;font-variant-numeric:tabular-nums;opacity:.72;transition:background .15s,color .15s,opacity .15s}
+  .pill.clock.active{opacity:1;background:#2b2540;color:#fff;box-shadow:0 0 0 2px #fff,0 2px 10px rgba(60,40,120,.45)}
+  .pill.clock.low span{color:#ff4d6d;font-weight:800}
+  .pill.clock.active.low{animation:clockPulse .6s ease-in-out infinite alternate}
+  @keyframes clockPulse{from{transform:scale(1)}to{transform:scale(1.07)}}
+  /* 홈 화면 (임시) */
+  #home{background:linear-gradient(180deg,rgba(207,216,246,.6),rgba(142,127,224,.5));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  .card.home{width:min(86vw,340px);display:flex;flex-direction:column;gap:12px;padding:28px 24px}
+  .homeLogo{font-size:54px;line-height:1}
+  .card.home h1{margin:0;font-size:38px;letter-spacing:1px}
+  .card.home .sub{margin:0 0 6px;color:#6b6290;font-size:14px;font-weight:600}
+  button.pill.big{width:100%;font-size:18px;padding:14px 20px}
+  button.pill.primary{background:linear-gradient(135deg,#8e7fe0,#b99cff);color:#fff}
+  button.pill.primary:active{background:linear-gradient(135deg,#7a6bd0,#a58aef)}
+  .homeOpts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px}
+  .homeOpts .pill{font-size:14px;padding:8px 14px;background:#f0ecff;box-shadow:none}
+  body.home #top,body.home #bottom,body.home #clocks{display:none}
+  input{user-select:text;-webkit-user-select:text}
+  .olBox{display:flex;flex-direction:column;gap:12px}
+  .olJoin{display:flex;gap:8px}
+  .olJoin input{flex:1;min-width:0;font-size:22px;font-weight:800;letter-spacing:6px;text-align:center;text-transform:uppercase;border:2px solid #cbbef5;border-radius:14px;padding:10px;background:#f6f2ff;color:#2b2540}
+  #olCodeShow{font-size:46px;font-weight:900;letter-spacing:10px;color:#6b52d6;padding-left:10px}
+  #olMsg.err{color:#d9345f}
+  #btnResign{display:none}
+  body.online #btnResign{display:inline-block}
+  body.online #btnNew,body.online #btnUndo,body.online #btnMode,body.online #btnTime{display:none}
+  .hidden{display:none!important}
+  #loading{background:#cfd8f6}
+  #barBox{width:220px;height:10px;background:#fff;border-radius:6px;overflow:hidden;margin-top:12px}
+  #bar{height:100%;width:0;background:#8e7fe0;transition:width .15s}
+</style>
+</head>
+<body class="home">
+<canvas id="c"></canvas>
+
+<div id="top" class="hud"><div class="pill"><span id="turnDot"></span><span id="status">로딩 중…</span></div></div>
+<div id="bottom" class="hud">
+  <button class="pill" id="btnHome">🏠 홈</button>
+  <button class="pill" id="btnResign">🏳 기권</button>
+  <button class="pill" id="btnNew">새 게임</button>
+  <button class="pill" id="btnUndo">↩ 무르기</button>
+  <button class="pill" id="btnMode">🤖 AI 대전</button>
+  <button class="pill" id="btnLevel">난이도 ★★</button>
+  <button class="pill" id="btnTime">⏱ 무제한</button>
+  <button class="pill" id="btnBgm">🎵 BGM 켜짐</button>
+</div>
+
+<div id="clocks" class="hud hidden">
+  <div class="pill clock" id="clockW">⚪ 백 <span>0:00</span></div>
+  <div class="pill clock" id="clockB">⚫ 흑 <span>0:00</span></div>
+</div>
+
+<div id="home" class="modal">
+  <div class="card home">
+    <div class="homeLogo">♟️</div>
+    <h1>SD 체스</h1>
+    <p class="sub">귀여운 3D 체스 대전</p>
+    <button class="pill big primary hidden" id="hmResume">▶ 이어하기</button>
+    <button class="pill big primary" id="hmAI">🤖 AI 대전</button>
+    <button class="pill big primary" id="hmP2">👥 2인 대전</button>
+    <button class="pill big primary" id="hmOnline">🌐 온라인 대전</button>
+    <div class="homeOpts">
+      <button class="pill" id="hmLevel">난이도 ★★</button>
+      <button class="pill" id="hmTime">⏱ 무제한</button>
+      <button class="pill" id="hmBgm">🎵 BGM 켜짐</button>
+    </div>
+  </div>
+</div>
+
+<div id="online" class="modal hidden">
+  <div class="card home">
+    <h2>🌐 온라인 대전</h2>
+    <div id="olLobby" class="olBox">
+      <button class="pill big primary" id="olCreate">방 만들기</button>
+      <div class="olJoin"><input id="olCode" maxlength="4" placeholder="방 코드" autocapitalize="characters" autocomplete="off" spellcheck="false"><button class="pill" id="olJoin">입장</button></div>
+      <div class="homeOpts"><button class="pill" id="olTime">⏱ 무제한</button></div>
+      <p class="sub" style="margin:0">방을 만들 때의 시간 설정이 대국에 적용됩니다</p>
+    </div>
+    <div id="olWait" class="olBox hidden">
+      <p class="sub" style="margin:0">친구에게 이 코드를 알려주세요</p>
+      <div id="olCodeShow">----</div>
+      <p class="sub" style="margin:0">상대를 기다리는 중…</p>
+    </div>
+    <p id="olMsg" class="sub" style="margin:0;min-height:1.2em"></p>
+    <button class="pill" id="olBack">← 뒤로</button>
+  </div>
+</div>
+
+<div id="promo" class="modal hidden"><div class="card"><h2>승급할 말을 고르세요</h2>
+  <div class="row"><button data-p="Q">♕</button><button data-p="R">♖</button><button data-p="B">♗</button><button data-p="N">♘</button></div></div></div>
+<div id="over" class="modal hidden"><div class="card"><h2 id="overText"></h2><button class="pill" id="btnAgain" style="font-size:17px">다시 하기</button></div></div>
+<div id="loading" class="modal"><div class="card" style="background:transparent;box-shadow:none"><h2 id="loadText">캐릭터 불러오는 중…</h2><div id="barBox"><div id="bar"></div></div></div></div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>

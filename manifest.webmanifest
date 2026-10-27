@@ -1,0 +1,3 @@
+{ "name": "SD 체스", "short_name": "SD 체스", "start_url": "./index.html", "display": "fullscreen",
+  "background_color": "#cfd8f6", "theme_color": "#cfd8f6",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }] }

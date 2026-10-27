@@ -1,0 +1,9 @@
+{
+  "name": "sd-chess",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SD 체스 – 정적 파일 + 온라인 대전 서버",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
